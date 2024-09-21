@@ -8,6 +8,8 @@ from std_srvs.srv import Empty
 import argparse
 import time
 
+import re
+
 def argumentParser(argument):
   """ Argument parser """
   parser = argparse.ArgumentParser(description='Drive robot joint to command position')
@@ -61,44 +63,54 @@ def moveFingers (jointcmds,prefix,nbJoints):
   while (count < 500):
     pub.publish(jointCmd)
     count = count + 1
-    rate.sleep()     
+    rate.sleep()
+
+def extract_last_packet(data):
+  # Find all occurrences of packets using regex
+  packets = re.findall(r'\d+:\[[^\]]+\]', data)
+  
+  if packets:
+      # Return the last packet from the list
+      return packets[-1]
+  return None
 
 if __name__ == '__main__':
   try:
-
     rospy.init_node('move_robot_using_trajectory_msg')		
     prefix, nbJoints, nbfingers = argumentParser(None)    
-
-    start_time = time.time()
-    
     #allow gazebo to launch
-    # time.sleep(5)
+    time.sleep(5)
 
     # Unpause the physics
     rospy.wait_for_service('/gazebo/unpause_physics')
     unpause_gazebo = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
     resp = unpause_gazebo()
 
-    end_time = time.time()
-    duration = end_time - start_time
-    print(f"Duration 1: {duration:.4f} seconds")
+    while True:
+      with open('/home/ziliang/catkin_ws/src/kinova-ros/kinova_control/src/data', 'r') as file:
+        data = file.read().strip()  # Read and remove any extra whitespace
+        data = extract_last_packet(data)
+      
+      timestamp, data_string = data.split(":", 1) # split only once for the first :
 
-    if (nbJoints==6):
-      #home robots
-      moveJoint ([0.0,2.9,1.3,4.2,1.4,0.0],prefix,nbJoints)
-    else:
-      moveJoint ([0.0,2.9,0.0,1.3,4.2,1.4,0.0],prefix,nbJoints)
-    
-    end_time = time.time()
-    duration = end_time - start_time
-    print(f"Duration 2: {duration:.4f} seconds")
-    
-    moveFingers ([1,1,1],prefix,nbfingers)
+      timestamp = int(timestamp)
+      print("one-way delay(ms): ", round(time.time()*1000)-timestamp)
+      print("6DoF Change to:", data_string)
+      
+      six_dof = eval(data_string)
 
-    end_time = time.time()
-    duration = end_time - start_time
-    print(f"Duration 3: {duration:.4f} seconds")
+      # # Unpause the physics
+      # rospy.wait_for_service('/gazebo/unpause_physics')
+      # unpause_gazebo = rospy.ServiceProxy('/gazebo/unpause_physics', Empty)
+      # resp = unpause_gazebo()
 
-    print("<RTEN> move complete!")
+      if (nbJoints==6):
+        #home robots
+        moveJoint (six_dof,prefix,nbJoints)
+      else:
+        moveJoint ([0.0,2.9,0.0,1.3,4.2,1.4,0.0],prefix,nbJoints)
+
+      moveFingers ([1,1,1],prefix,nbfingers)
+      print ("<RTEN> move complete!")
   except rospy.ROSInterruptException:
     print("program interrupted before completion")

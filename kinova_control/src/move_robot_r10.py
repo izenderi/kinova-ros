@@ -29,7 +29,7 @@ def moveJoint (jointcmds,prefix,nbJoints):
   jointCmd = JointTrajectory()  
   point = JointTrajectoryPoint()
   jointCmd.header.stamp = rospy.Time.now() + rospy.Duration.from_sec(0.0);  
-  point.time_from_start = rospy.Duration.from_sec(5.0)
+  point.time_from_start = rospy.Duration.from_sec(0.1) # <RTEN> link with r10_bridge_robot
   for i in range(0, nbJoints):
     jointCmd.joint_names.append(prefix +'_joint_'+str(i+1))
     point.positions.append(jointcmds[i])
@@ -39,10 +39,10 @@ def moveJoint (jointcmds,prefix,nbJoints):
   jointCmd.points.append(point)
   rate = rospy.Rate(100)
   count = 0
-  while (count < 50):
+  while (count < 50): # <RTEN> 10ms each time = 10Hz in rate.sleep()
     pub.publish(jointCmd)
     count = count + 1
-    rate.sleep()     
+    rate.sleep()
 
 def moveFingers (jointcmds,prefix,nbJoints):
   topic_name = '/' + prefix + '/effort_finger_trajectory_controller/command'
@@ -75,6 +75,11 @@ def extract_last_packet(data):
   return None
 
 if __name__ == '__main__':
+
+  count = 0 # count for how many moves
+  avg_one_way_latency = 0
+  sum_one_way_latency = 0
+
   try:
     rospy.init_node('move_robot_using_trajectory_msg')		
     prefix, nbJoints, nbfingers = argumentParser(None)    
@@ -89,15 +94,28 @@ if __name__ == '__main__':
     while True:
       with open('/home/ziliang/catkin_ws/src/kinova-ros/kinova_control/src/data', 'r') as file:
         data = file.read().strip()  # Read and remove any extra whitespace
-        data = extract_last_packet(data)
+      with open('/home/ziliang/catkin_ws/src/kinova-ros/kinova_control/src/t1', 'r') as file:
+        time_end_bridge = file.read().strip()  # Read and remove any extra whitespace
+        time_end_bridge = float(time_end_bridge )
       
-      timestamp, data_string = data.split(":", 1) # split only once for the first :
+      if data:
+        count += 1
+      
+        time1, data_string = data.split(":", 1) # split only once for the first :
+        time1 = float(time1)
+        time_start_mover = time.time()
 
-      timestamp = int(timestamp)
-      print("one-way delay(ms): ", round(time.time()*1000)-timestamp)
-      print("6DoF Change to:", data_string)
-      
-      six_dof = eval(data_string)
+        one_way_latency = time_start_mover - time1 - (time_start_mover - time_end_bridge)
+        print("r10_bridge to move_robot(ms): ", round((time_start_mover - time_end_bridge)*1000, 4) )
+        print("one-way delay(ms): ", round(one_way_latency*1000, 4))
+        sum_one_way_latency += one_way_latency
+        avg_one_way_latency = sum_one_way_latency / count
+        print(f"Average one-way delay(ms): {avg_one_way_latency*1000:.4f}")
+        print("6DoF Change to:", data_string)
+        
+        six_dof = eval(data_string)
+      else:
+        print("ERROR: None data")
 
       # # Unpause the physics
       # rospy.wait_for_service('/gazebo/unpause_physics')
@@ -110,7 +128,9 @@ if __name__ == '__main__':
       else:
         moveJoint ([0.0,2.9,0.0,1.3,4.2,1.4,0.0],prefix,nbJoints)
 
-      moveFingers ([1,1,1],prefix,nbfingers)
-      print ("<RTEN> move complete!")
+      # moveFingers ([1,1,1],prefix,nbfingers)
+      timestamp_2 = time.time()
+      print("move joint delay(ms): ", round((timestamp_2-time_start_mover)*1000, 4))
+      print ("<RTEN> move complete!\n")
   except rospy.ROSInterruptException:
     print("program interrupted before completion")

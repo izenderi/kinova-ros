@@ -29,7 +29,7 @@ def moveJoint (jointcmds,prefix,nbJoints):
   jointCmd = JointTrajectory()  
   point = JointTrajectoryPoint()
   jointCmd.header.stamp = rospy.Time.now() + rospy.Duration.from_sec(0.0);  
-  point.time_from_start = rospy.Duration.from_sec(0.1) # <RTEN> link with r10_bridge_robot
+  point.time_from_start = rospy.Duration.from_sec(0.1) # <RTEN> has to match while (count < x): 0.1s==100ms==10
   for i in range(0, nbJoints):
     jointCmd.joint_names.append(prefix +'_joint_'+str(i+1))
     point.positions.append(jointcmds[i])
@@ -39,7 +39,7 @@ def moveJoint (jointcmds,prefix,nbJoints):
   jointCmd.points.append(point)
   rate = rospy.Rate(100)
   count = 0
-  while (count < 50): # <RTEN> 10ms each time = 10Hz in rate.sleep()
+  while (count < 10): # <RTEN> 10 == 100ms
     pub.publish(jointCmd)
     count = count + 1
     rate.sleep()
@@ -92,9 +92,9 @@ if __name__ == '__main__':
     resp = unpause_gazebo()
 
     while True:
-      with open('/home/ziliang/catkin_ws/src/kinova-ros/kinova_control/src/data', 'r') as file:
+      with open('data', 'r') as file:
         data = file.read().strip()  # Read and remove any extra whitespace
-      with open('/home/ziliang/catkin_ws/src/kinova-ros/kinova_control/src/t1', 'r') as file:
+      with open('t1', 'r') as file:
         time_end_bridge = file.read().strip()  # Read and remove any extra whitespace
         time_end_bridge = float(time_end_bridge )
       

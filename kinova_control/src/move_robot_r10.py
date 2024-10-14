@@ -29,7 +29,7 @@ def moveJoint (jointcmds,prefix,nbJoints):
   jointCmd = JointTrajectory()  
   point = JointTrajectoryPoint()
   jointCmd.header.stamp = rospy.Time.now() + rospy.Duration.from_sec(0.0);  
-  point.time_from_start = rospy.Duration.from_sec(0.1) # <RTEN> has to match while (count < x): 0.1s==100ms==10
+  point.time_from_start = rospy.Duration.from_sec(0.05) # <RTEN> has to match while (count < x): 0.05s==50ms==5
   for i in range(0, nbJoints):
     jointCmd.joint_names.append(prefix +'_joint_'+str(i+1))
     point.positions.append(jointcmds[i])
@@ -39,7 +39,7 @@ def moveJoint (jointcmds,prefix,nbJoints):
   jointCmd.points.append(point)
   rate = rospy.Rate(100)
   count = 0
-  while (count < 10): # <RTEN> 10 == 100ms
+  while (count < 5): # <RTEN> 5 == 50ms match the xr camera rate
     pub.publish(jointCmd)
     count = count + 1
     rate.sleep()
@@ -96,6 +96,10 @@ if __name__ == '__main__':
         data = file.read().strip()  # Read and remove any extra whitespace
       with open('t1', 'r') as file:
         time_end_bridge = file.read().strip()  # Read and remove any extra whitespace
+        
+        if time_end_bridge == '': # if the time has not been updated
+          continue
+
         time_end_bridge = float(time_end_bridge )
       
       if data:

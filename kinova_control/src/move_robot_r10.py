@@ -116,8 +116,10 @@ if __name__ == '__main__':
         avg_one_way_latency = sum_one_way_latency / count
         print(f"Average one-way delay(ms): {avg_one_way_latency*1000:.4f}")
         print("6DoF Change to:", data_string)
-        
-        six_dof = eval(data_string)
+        if data_string.strip():  # Check if data_string is not empty or only whitespace
+            six_dof = eval(data_string)
+        else:
+            print("ERROR: Invalid data_string, skipping eval")
       else:
         print("ERROR: None data")
 

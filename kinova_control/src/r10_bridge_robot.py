@@ -105,7 +105,7 @@ if __name__ == '__main__':
     port = 9090
 
     listen_thread = Thread(target=listen_from_xr, args=(host, port))
-    send_thread = Thread(target=robot_to_xr, args=("", 9091, "localhost", 0.5))
+    send_thread = Thread(target=robot_to_xr, args=("", 9091, "localhost", 0.05)) # 0.05 is 50ms period
 
     listen_thread.start()
     send_thread.start()
